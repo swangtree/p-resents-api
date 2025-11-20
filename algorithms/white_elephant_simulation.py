@@ -102,7 +102,7 @@ def generate_play_order(preferences: List[UserPreference], seed: int = None) -> 
     return user_ids
 
 
-def _simulate_single_game(preferences: List[UserPreference]) -> Dict:
+def simulate_single_game(preferences: List[UserPreference]) -> Dict:
     """
     Internal helper to simulate a single White Elephant game.
 
@@ -115,6 +115,71 @@ def _simulate_single_game(preferences: List[UserPreference]) -> Dict:
     TODO: Person 3 to implement
     This is the core game simulation logic.
     """
+
+    # note: novelty and practicality are scored on a range from 0-5 (?) 
+    # initialize overall steal count of 0 
+    # everyone: initilize my_turn to 1 
+        # every time someone goes, -1 for my_turn 
+        # every time someone gets stolen from +1 to my_turn
+    # everyone: initilize happiness of 5 to begin with (the range will be 0-10) (number)
+    # everyone: initialize hypothetical happiness of 5 to begin with (the range will be 0-10) (make it a list for easier comparison later?) 
+    # make a dict with how many times a player steals and was stolen from? both numbers start at 0
+    # make a dict with the gift that was the last stolen one (player: previous gift)
+    # make a dict with the status of each gift? gift: novelty, practicality, opened/unopened, stolen/not stolen 
+        # rule: gift can only be stolen [x] of times. could have the user choose, but i would say max 3 times. 
+        # rule: gifts that are unopened cannot be stolen 
+        # rule: you cannot immediately steal back the gift that was stolen from you 
+
+    # happiness calculator: 
+        # 1. find the distance between receiver's preferred novelty and giver's gift's novelty (gift_novelty - preferred_novelty)
+        # 2. find the distance between receiver's preferred practicality and the giver's gift practicality (gift_practicality - preferred_practicality)
+        # 3a. if the preferences and the gifts are exactly the same (the distances are 0), receiver's happiness = 9 (arbitrary number lmao. great, but leaves room for unexpected happiness) 
+        # 3b. for every point above (gift > preferred), +1 to receiver's happiness. stop if receiver's happiness reaches 10 (max happiness) 
+        # 3c. for every point below (gift < preferred), -1 from receiver's happiness. stop if receiver's happiness reaches 0 (no negative happiness) 
+
+
+    # player #1 must open a gift (only option) 
+        # 1. assign the giver's gift to player #1 in the dict 
+        # 2. recalculate player #1 happiness using happiness calculator
+        # 3. -1 to my_turn, making it 0
+        
+    # remaining players have the choice between opening or stealing, so for the current player: 
+        # 1. recalculate hypothetical happiness: 
+            # for every gift that is opened and steal =< 3 and was not the gift that was last stolen from the player (if that applies), use the happiness calculator 
+                # only keep the highest hypothetical happiness as the final 
+                # add bonus of we_enjoy_stealing to their highest hypothetical happiness 
+            # if there are no gifts that meet that critera (open and steal =< 3), then automatically go to 2b (pick a new gift)
+        # 2a. if hypothetical happiness > 5, steal from the player that has that gift  
+            # assign the stolen gift to the current player in the dict 
+            # recalculate the current player happiness by equating it to hypothetical happiness 
+            # +1 to the overall steal count 
+            # +1 to the current player's steal count, the player whose gift was stolen's stolen count, and the status of the gift's stolen count
+            # update player: previous gift
+            # player whose gift was stolen's happiness returns to 5
+        # 2b. if hypothetical happiness < 5, pick a new gift 
+            # assign the giver's gift to the current player in the dict 
+            # recalculate the current player happiness using happiness calculator 
+        # 3. -1 to my_turn, making it 0 
+
+    # start from the beginning of the dict. the first person who has my_turn = 1, they get to go 
+    # repeat steps 1-3 under "remaining players have the choice between opening or stealing..." until my_turn for everyone is 0 
+
+    # recalculate happiness scores by now subtracting how much people disliked being stolen from 
+        # if stolen > 0, then minus penalty from we_hate_being_stolen_from (the lowest happiness can go is 0)
+
+    # return the final gift assignment 
+    # return steal count and stolen count for each player 
+    # return overall number of steals 
+    # return the final and individual happiness score for each player
+
+    # questions i have / things to think about: 
+        # should perfect match = 9 or is there a "better" number? 
+        # does the further the distance --> the more happy/unhappy people are? currently, i have +1/-1 for every step above/below, when it is probably not linear in reality? 
+        # what happens if hypothetical happiness is the same across multiple gifts? choose one randomly? or what other way to tie break? 
+        # i mix the we_enjoy_to_steal within the formula to decide whether to steal or not. i do not include it at the end if their end gift was not the gift that they stole. 
+        # in contrast, i keep the we_hate_being_stolen_from until the end, because i don't think that influences someone's decision whether to steal or not. 
+        # does that logic make sense? should i calculate we_enjoy_to_steal in the end happiness, even if they do not end up with the gift they stole? 
+
     # PLACEHOLDER
     return {
         "assignments": {},
