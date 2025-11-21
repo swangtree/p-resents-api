@@ -1,10 +1,12 @@
 """
 Maximum Fairness Matching Algorithm
 
-ASSIGNMENT: Person 2
+ASSIGNMENT: Stefanie Nguyen
 Implements fairness-optimized matching (e.g., minimax or variance minimization).
 """
-from typing import List, Dict
+from typing import List, Dict, Tuple
+import statistics
+from itertools import permutations
 from models.preferences import UserPreference
 from models.responses import RulesetStats, UserStats
 from utils.utility_calculator import calculate_utility
@@ -14,49 +16,10 @@ def calculate_statistics(preferences: List[UserPreference]) -> RulesetStats:
     """
     Calculate statistics for the fairness-optimized matching.
 
-    Finds a matching that optimizes for fairness. Possible approaches:
-    - Minimax: Maximize the minimum utility (ensure no one gets a bad match)
-    - Variance minimization: Minimize variance in utility scores
-    - Egalitarian: Ensure everyone gets above a threshold
-
-    Args:
-        preferences: List of user preference objects
-
-    Returns:
-        RulesetStats object with:
-        - group_satisfaction_score: Average utility in the fair matching
-        - group_fairness_score: Fairness metric (should be high!)
-        - min_utility: Minimum utility in the matching
-        - max_utility: Maximum utility in the matching
-        - std_dev: Standard deviation (should be low for fair matching)
-        - user_stats: Per-user utility in the fair matching
-
-    TODO: Person 2 to implement
-    Design decisions:
-    1. Choose your fairness metric (minimax recommended)
-    2. Implement algorithm to optimize that metric
-    3. Handle exclusions
-    4. Calculate resulting statistics
-
-    Hint for minimax: Try different matchings and pick the one with highest min utility.
-          You can use random search, or implement a more sophisticated algorithm.
+    Finds a matching that optimizes for fairness using minimax approach.
     """
-    # PLACEHOLDER IMPLEMENTATION
-    user_stats = {}
-    for pref in preferences:
-        user_stats[pref.user_id] = UserStats(
-            expected_utility=6.5,
-            variance=0.0
-        )
-
-    return RulesetStats(
-        group_satisfaction_score=6.5,
-        group_fairness_score=9.5,  # High fairness!
-        min_utility=6.0,
-        max_utility=7.5,
-        std_dev=0.5,  # Low variance!
-        user_stats=user_stats
-    )
+    _, stats = _find_fair_matching(preferences)
+    return stats
 
 
 def generate_matching(preferences: List[UserPreference], seed: int = None) -> Dict[str, str]:
@@ -64,41 +27,183 @@ def generate_matching(preferences: List[UserPreference], seed: int = None) -> Di
     Generate a fairness-optimized matching.
 
     Uses the same algorithm as calculate_statistics to find the best matching.
-
-    Args:
-        preferences: List of user preference objects
-        seed: Random seed if algorithm uses randomness
-
-    Returns:
-        Dict mapping giver_id -> receiver_id
-
-    TODO: Person 2 to implement
-    Should use the same logic as calculate_statistics to ensure consistency.
     """
-    # PLACEHOLDER IMPLEMENTATION
     matching, _ = _find_fair_matching(preferences, seed)
     return matching
 
 
-def _find_fair_matching(preferences: List[UserPreference], seed: int = None) -> tuple[Dict[str, str], RulesetStats]:
+def _find_fair_matching(preferences: List[UserPreference], seed: int = None) -> Tuple[Dict[str, str], RulesetStats]:
     """
-    Internal helper to find fair matching and stats.
-
-    This can be shared between calculate_statistics and generate_matching
-    to avoid code duplication.
-
-    TODO: Person 2 to implement
+    Internal helper to find fair matching and stats using deterministic minimax approach.
+    
+    Algorithm:
+    1. For small groups (n <= 8): Try all permutations and find optimal minimax solution
+    2. For larger groups: Use greedy approach that prioritizes worst-off users
+    3. Calculate statistics for the best matching found
     """
-    # PLACEHOLDER
     user_ids = [pref.user_id for pref in preferences]
     n = len(user_ids)
-
-    # Simple placeholder matching
-    matching = {}
-    for i in range(n):
-        giver = user_ids[i]
-        receiver = user_ids[(i + 1) % n]
-        matching[giver] = receiver
-
-    stats = calculate_statistics(preferences)
-    return matching, stats
+    
+    # Handle empty case
+    if n == 0:
+        return {}, RulesetStats(
+            group_satisfaction_score=0.0,
+            group_fairness_score=0.0,
+            min_utility=0.0,
+            max_utility=0.0,
+            std_dev=0.0,
+            user_stats={}
+        )
+    
+    # Build preference lookup dictionary
+    pref_dict = {pref.user_id: pref for pref in preferences}
+    
+    # Choose algorithm based on group size
+    if n <= 8:
+        # Exhaustive search for small groups - finds optimal solution
+        best_matching = None
+        best_min_utility = float('-inf')
+        
+        # Try all possible receiver orderings
+        for receiver_perm in permutations(user_ids):
+            # Check if valid (no self-matching)
+            if any(user_ids[i] == receiver_perm[i] for i in range(n)):
+                continue
+            
+            # Build matching dictionary
+            matching = {user_ids[i]: receiver_perm[i] for i in range(n)}
+            
+            # Calculate utilities and check exclusions
+            utilities = []
+            valid = True
+            for giver, receiver in matching.items():
+                prefs = pref_dict[giver]
+                if receiver in prefs.excluded_users:
+                    valid = False
+                    break
+                utility = calculate_utility(receiver, prefs)
+                utilities.append(utility)
+            
+            if not valid:
+                continue
+            
+            # Check if this matching has higher minimum utility (minimax)
+            min_utility = min(utilities)
+            if min_utility > best_min_utility:
+                best_min_utility = min_utility
+                best_matching = matching
+        
+        # Fallback if no valid matching found due to exclusions
+        if best_matching is None:
+            # Try ignoring exclusions
+            for receiver_perm in permutations(user_ids):
+                if any(user_ids[i] == receiver_perm[i] for i in range(n)):
+                    continue
+                matching = {user_ids[i]: receiver_perm[i] for i in range(n)}
+                utilities = [calculate_utility(receiver, pref_dict[giver]) 
+                           for giver, receiver in matching.items()]
+                min_utility = min(utilities)
+                if best_matching is None or min_utility > best_min_utility:
+                    best_min_utility = min_utility
+                    best_matching = matching
+        
+        # Ultimate fallback: circular matching
+        if best_matching is None:
+            best_matching = {user_ids[i]: user_ids[(i + 1) % n] for i in range(n)}
+    
+    else:
+        # Greedy minimax for larger groups
+        matching = {}
+        available_receivers = set(user_ids)
+        unmatched_givers = set(user_ids)
+        
+        while unmatched_givers:
+            # Find best assignment for each unmatched giver
+            best_assignments = []
+            
+            for giver in unmatched_givers:
+                prefs = pref_dict[giver]
+                
+                # Find valid receivers (not excluded, not self, still available)
+                valid_receivers = [
+                    r for r in available_receivers 
+                    if r != giver and r not in prefs.excluded_users
+                ]
+                
+                # Fallback: ignore exclusions if needed
+                if not valid_receivers:
+                    valid_receivers = [r for r in available_receivers if r != giver]
+                
+                if valid_receivers:
+                    # Find receiver with best utility for this giver
+                    receiver_utilities = [
+                        (calculate_utility(r, prefs), r) 
+                        for r in valid_receivers
+                    ]
+                    best_utility, best_receiver = max(receiver_utilities)
+                    best_assignments.append((giver, best_receiver, best_utility))
+            
+            if not best_assignments:
+                break
+            
+            # Sort by utility (ascending) - assign worst-off user first
+            best_assignments.sort(key=lambda x: x[2])
+            
+            # Make assignment for worst-off user
+            giver, receiver, utility = best_assignments[0]
+            matching[giver] = receiver
+            unmatched_givers.remove(giver)
+            available_receivers.remove(receiver)
+        
+        best_matching = matching
+    
+    # Calculate statistics for the best matching
+    utilities = {}
+    for giver, receiver in best_matching.items():
+        prefs = pref_dict[giver]
+        utility = calculate_utility(receiver, prefs)
+        utilities[giver] = utility
+    
+    if not utilities:
+        return best_matching, RulesetStats(
+            group_satisfaction_score=0.0,
+            group_fairness_score=0.0,
+            min_utility=0.0,
+            max_utility=0.0,
+            std_dev=0.0,
+            user_stats={}
+        )
+    
+    utility_values = list(utilities.values())
+    min_util = min(utility_values)
+    max_util = max(utility_values)
+    avg_util = statistics.mean(utility_values)
+    std_dev = statistics.stdev(utility_values) if len(utility_values) > 1 else 0.0
+    
+    # Calculate fairness score (higher when utilities are more equal)
+    if avg_util > 0:
+        cv = std_dev / avg_util  # Coefficient of variation
+        fairness_score = max(0.0, 10.0 * (1.0 - cv))
+    else:
+        fairness_score = 0.0
+    
+    # Alternative: ratio of min to max
+    if max_util > 0:
+        fairness_score = max(fairness_score, 10.0 * (min_util / max_util))
+    
+    # Build user stats
+    user_stats = {
+        user_id: UserStats(expected_utility=utility, variance=0.0)
+        for user_id, utility in utilities.items()
+    }
+    
+    stats = RulesetStats(
+        group_satisfaction_score=avg_util,
+        group_fairness_score=min(10.0, fairness_score),
+        min_utility=min_util,
+        max_utility=max_util,
+        std_dev=std_dev,
+        user_stats=user_stats
+    )
+    
+    return best_matching, stats  
