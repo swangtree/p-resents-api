@@ -80,7 +80,7 @@ def test_finalize_random_matching():
     assert data["ruleset"] == "Random Matching"
     assert "pairings" in data
     assert data["pairings"] is not None
-    assert len(data["pairings"]) == 4  # 4 users
+    assert len(data["pairings"]) == 8  # 8 users
 
 
 def test_finalize_max_utility():
@@ -112,7 +112,7 @@ def test_finalize_white_elephant():
     assert data["ruleset"] == "White Elephant"
     assert "play_order" in data
     assert data["play_order"] is not None
-    assert len(data["play_order"]) == 4  # 4 users
+    assert len(data["play_order"]) == 8  # 8 users
 
 
 def test_finalize_invalid_ruleset():

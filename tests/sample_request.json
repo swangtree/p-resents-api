@@ -1,11 +1,6 @@
-"""
-Test data for API testing.
-
-Provides sample user preferences for testing endpoints and algorithms.
-"""
-
-# Sample preferences for 8 users
-SAMPLE_PREFERENCES = [
+{
+  "group_id": "test_group_001",
+  "preferences": [
     {
         "user_id": "Samuel",
         "preference_practicality_giving": 5,
@@ -110,49 +105,5 @@ SAMPLE_PREFERENCES = [
         "we_enjoy_stealing": 2,
         "exclusions": []
     }
-]
-
-# Sample recalculate request
-SAMPLE_RECALCULATE_REQUEST = {
-    "group_id": "test_group_001",
-    "preferences": SAMPLE_PREFERENCES
+  ]
 }
-
-# Sample finalize request for each ruleset
-SAMPLE_FINALIZE_RANDOM = {
-    "group_id": "test_group_001",
-    "ruleset": "Random Matching",
-    "preferences": SAMPLE_PREFERENCES,
-    "seed": 42
-}
-
-SAMPLE_FINALIZE_MAX_UTILITY = {
-    "group_id": "test_group_001",
-    "ruleset": "Max Utility",
-    "preferences": SAMPLE_PREFERENCES
-}
-
-SAMPLE_FINALIZE_MAX_FAIRNESS = {
-    "group_id": "test_group_001",
-    "ruleset": "Max Fairness",
-    "preferences": SAMPLE_PREFERENCES,
-    "seed": 42
-}
-
-SAMPLE_FINALIZE_WHITE_ELEPHANT = {
-    "group_id": "test_group_001",
-    "ruleset": "White Elephant",
-    "preferences": SAMPLE_PREFERENCES,
-    "seed": 42
-}
-
-# Edge case: minimum 2 users
-SAMPLE_PREFERENCES_2_USERS = [
-    SAMPLE_PREFERENCES[0],
-    SAMPLE_PREFERENCES[1]
-]
-
-# Edge case: 1 user (should fail validation)
-SAMPLE_PREFERENCES_1_USER = [
-    SAMPLE_PREFERENCES[0]
-]
